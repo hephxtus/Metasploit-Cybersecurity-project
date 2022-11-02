@@ -4,6 +4,7 @@ check for vulnerable ports
 import json
 import os
 import subprocess
+import time
 
 import nmap
 import pandas
@@ -82,13 +83,22 @@ def get_vuln_hosts(client, hosts, script):
     # ports_list = set([str(p) for p in ports_list])
 
     print("Running nmap on hosts:", hosts_list)
-    nmap_str = f"--script {script} -sV" #-sV -sC
+    nmap_str = f"--script {script} -sV --open" #-sV -sC
     print("Nmap string:", nmap_str)
     nm = nmap.PortScanner()
     nm.scan(hosts=','.join(hosts_list), arguments=nmap_str, ports='-')#','.join(ports_list)
     print("command: ", nm.command_line())
     print(nm.all_hosts())
     # print(db_nmap(client, nmap_str))
+    cid = client.consoles.list[0]['id']
+    console = client.consoles.console(cid)
+    console.write(f"db_nmap {nmap_str} -p- {','.join(hosts_list)}")
+    time.sleep(5)
+    data = console.read()['data']
+    print(data)
+    while data != "":
+        data = console.read()['data']
+        print(data)
     print("Nmap finished")
     print("Running db_nmap")
     print(client.db.workspaces.workspace('default').hosts.list)
@@ -148,6 +158,7 @@ def add_vulns_db(nm: nmap.PortScanner, hosts: pandas.DataFrame, client: MsfRpcCl
     """
     print("Adding hosts to db")
     for host in nm.all_hosts():
+        print(nm[host])
         # get os_name and os_flavor for host host in hosts dataframe
         os_name = hosts.loc[host, "os_name"]
         os_flavor = str(hosts.loc[host, "os_flavor"])
@@ -163,7 +174,10 @@ def add_vulns_db(nm: nmap.PortScanner, hosts: pandas.DataFrame, client: MsfRpcCl
             lport = nm[host][proto].keys()
             print("lport:", lport)
             for port in lport:
-                client.db.workspaces.workspace('default').services.report(host=host, port=port, proto=proto),
+                # Optional Keyword Arguments:
+                #         - name : the application layer protocol (e.g. ssh, mssql, smb)
+                #         - sname : an alias for the above
+                client.db.workspaces.workspace('default').services.report(host=host, port=port, proto=proto, name=nm[host][proto][port]['name'], ),
                 print(nm[host][proto][port])
                 # add vulns to db
                 if 'script' in nm[host][proto][port]:

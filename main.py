@@ -24,12 +24,15 @@ if __name__ == '__main__':
     try:
         client = common.utils.start_metasploit()
         while not exit:
+            print("0. reinitialize metasploit")
             print("1. Scan a network")
             print("2. Detect vulnerabilities in known hosts")
             print("3. Exploit known vulnerabilities")
             print("4. List all exploited hosts")
             print("5. Exit")
             choice = input("Enter your choice: ")
+            if choice == "0":
+                client = common.utils.start_metasploit()
             if choice == "1":
                 scan.main(client)
             elif choice == "2":
@@ -45,8 +48,12 @@ if __name__ == '__main__':
                 print("Invalid choice")
     finally:
         if client is not None:
-            client.db.disconnect()
+            # client.db.disconnect()
             conlist = client.call(MsfRpcMethod.ConsoleList)
+            print(conlist)
+            for c in conlist:
+                cid = c['id']
+                client.call(MsfRpcMethod.ConsoleDestroy, cid)
             print(conlist)
             client.call(MsfRpcMethod.ConsoleDestroy)
             client.call(MsfRpcMethod.AuthLogout)
