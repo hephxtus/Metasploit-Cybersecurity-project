@@ -12,7 +12,7 @@ import pandas as pd
 # from pymetasploit3 import *
 from pymetasploit3.msfrpc import MsfRpcMethod, MsfRpcClient
 
-from common.utils import start_metasploit
+from common.utils import start_metasploit, cwd
 
 vulns_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../nmap-vulners/")
 cwd = os.path.dirname(os.path.abspath(__file__))
@@ -86,13 +86,13 @@ def get_vuln_hosts(client, hosts, script):
     nmap_str = f"--script {script} -sV --open" #-sV -sC
     print("Nmap string:", nmap_str)
     nm = nmap.PortScanner()
-    nm.scan(hosts=','.join(hosts_list), arguments=nmap_str, ports='-')#','.join(ports_list)
+    nm.scan(hosts=' '.join(hosts_list), arguments=nmap_str, ports='-')#','.join(ports_list)
     print("command: ", nm.command_line())
     print(nm.all_hosts())
     # print(db_nmap(client, nmap_str))
     cid = client.consoles.list[0]['id']
     console = client.consoles.console(cid)
-    console.write(f"db_nmap {nmap_str} -p- {','.join(hosts_list)}")
+    # console.write(f"db_nmap {nmap_str} -p- {','.join(hosts_list)}")
     time.sleep(5)
     data = console.read()['data']
     print(data)
@@ -224,8 +224,7 @@ def main(client):
         print( client.db.workspaces.workspace('default').hosts.list)
         print( client.db.workspaces.workspace('default').vulns.list)
     except Exception as e:
-        print(type(e))
-        print(e)
+        return f"Error ({type(e)}): {e}"
     finally:
         #gracefully disconnect from db
 
@@ -233,7 +232,7 @@ def main(client):
         # gracefully disconnect from msfrpcd
         # client.logout()
         # return to main
-        return client
+        return "Vulnerability scan complete, hosts added to db"
 
 
     # write nm to metasploit db
