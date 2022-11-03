@@ -1,14 +1,16 @@
 import os
 import subprocess
 import time
+from tabulate import tabulate
+import pandas as pd
+
 # import pymetasploit3.pymetasploit3 as pymetasploit3
 from pymetasploit3.msfrpc import MsfRpcClient, MsfRpcMethod
 
 cwd = os.path.dirname(os.path.abspath(__file__))
-
+wasteland=False
 DELAY = 0.15
-
-def printd(message, delay=DELAY):
+def printd(message, delay=DELAY, header=False):
     """
     Print a message with a delay
     :param message:
@@ -16,47 +18,17 @@ def printd(message, delay=DELAY):
     :return:
     """
     time.sleep(delay)
-    print(message)
+    if type(message) == pd.DataFrame:
+        print(tabulate(message, headers='keys', tablefmt='psql'))
+    elif type(message) == list:
+        for l in message:
+            printd(l)
+        # print(message.to_string())
+    elif header:
+        print(create_header(message.upper()))
+    else:
+        print(message)
 
-    def create_header(msg) -> str:
-        """
-        Create a header for a message
-        :param msg: the message
-        :return: the header
-        """
-        # break message into lines of 30 characters
-        max_len = 50
-        border_thickness = 1
-        offset = 1
-        dist = border_thickness + offset
-        lines = split_string(msg, max_len - dist * 2)
-        # create a header
-        # find the longest line
-        longest_line = max(lines, key=len)
-        header_size = len(longest_line) + dist * 2
-
-        header = f"{'#' * header_size}\n" * border_thickness
-
-        for line in lines:
-            # find the size of the lin
-            line_size = len(line)
-            # calculate the number of spaces needed
-            num_spaces = header_size - border_thickness * 2 - line_size
-            padding = " " * int(num_spaces // 2)
-
-            border = "#" * border_thickness
-            text_area = f"{border}{padding}{line}{padding}{border}"
-            if num_spaces % 2 != 0:
-                text_area = text_area[:-border_thickness] + " " + text_area[-border_thickness:]
-
-            # create the line
-            header += f"{text_area}\n"
-
-            # header += text_area
-            # header += f"#{line}#\n"
-        header += f"{'#' * header_size}\n" * border_thickness
-        return header
-        # add the message to the center of the text box
 
 def create_header(msg) -> str:
     """
@@ -65,6 +37,8 @@ def create_header(msg) -> str:
     :return: the header
     """
     # break message into lines of 30 characters
+    if type(msg) != str:
+        return msg
     max_len = 50
     border_thickness= 1
     offset = 1
@@ -155,7 +129,11 @@ def start_metasploit():
             print(p.poll())
 
         print("Creating console")
-        client.call(MsfRpcMethod.ConsoleCreate)
+        if not client.consoles.list:
+            client.consoles.console()
+        else:
+            print("Console already exists")
+
         print("Console created")
         print("Console id:", client.call(MsfRpcMethod.ConsoleList))
         print("Creating database")

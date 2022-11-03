@@ -13,7 +13,7 @@ import os
 import nmap
 import pandas as pd
 
-from common.utils import cwd
+from common.utils import cwd, clear_terminal, printd
 
 # import netifaces
 # import netaddr
@@ -89,7 +89,7 @@ def scan_network(subnet_addr=None, verbose=False):
     return ip_list
 
 
-def main(client):
+def main(client, subnet_addr=None):
     """
     Main function
     - scan network
@@ -97,8 +97,12 @@ def main(client):
     :param client:
     :return:
     """
+    clear_terminal()
+    printd("Preliminary Scan", header=True)
     try:
-        subnet_addr = input("Enter the subnet address: ")
+        if subnet_addr is None:
+            raise Exception("No subnet address provided")
+        printd(f"Scanning network for hosts... {subnet_addr}", header=True)
         scan_network(subnet_addr, verbose=True)
 
         target = list(targets.keys())[0]
@@ -114,5 +118,5 @@ def main(client):
     except Exception as e:
         return f"Error ({type(e)}): {e}"
     else:
-        return f"Nmap found {results.index.tolist()}. Results saved to {os.path.join(cwd, '../hosts.csv')}"
+        return results
     # create a new dataframe where the index is the index of the targets and the columns are the keys of the target
