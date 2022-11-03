@@ -67,7 +67,7 @@ if __name__ == '__main__':
             for c in conlist['consoles']:
                 cid = c['id']
                 printd("Closing console: {}".format(cid))
-                # client.consoles.console(cid).destroy()
+                client.consoles.console(cid).destroy()
             print(conlist)
             # client.call(MsfRpcMethod.ConsoleDestroy)
             client.call(MsfRpcMethod.AuthLogout)

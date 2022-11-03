@@ -131,6 +131,8 @@ def start_metasploit():
         print("Creating console")
         if not client.consoles.list:
             client.consoles.console()
+        elif client.consoles.list[0]['busy']:
+            client.consoles.console()
         else:
             print("Console already exists")
 
