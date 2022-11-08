@@ -9,7 +9,7 @@ from src import vulnerabilities, scan, exploit, interact  # , persistence, post_
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-VERBOSE = True
+VERBOSE = False
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -67,7 +67,8 @@ if __name__ == '__main__':
             for c in conlist['consoles']:
                 cid = c['id']
                 printd("Closing console: {}".format(cid))
-                client.consoles.console(cid).destroy()
+                if not client.consoles.console(cid).is_busy():
+                    client.consoles.console(cid).destroy()
             print(conlist)
             # client.call(MsfRpcMethod.ConsoleDestroy)
             client.call(MsfRpcMethod.AuthLogout)

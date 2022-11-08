@@ -86,7 +86,7 @@ def get_vuln_hosts(client, hosts, script):
     nmap_str = f"--script {script} -sV --open" #-sV -sC
     printd("Nmap string:", nmap_str)
     nm = nmap.PortScanner()
-    nm.scan(hosts=' '.join(hosts_list), arguments=nmap_str, ports='-')#','.join(ports_list)
+    nm.scan(hosts=', '.join(hosts_list), arguments=nmap_str, ports='-')#','.join(ports_list)
     printd("command: ", nm.command_line())
     printd(nm.all_hosts())
     # printd(db_nmap(client, nmap_str))
@@ -103,6 +103,7 @@ def get_vuln_hosts(client, hosts, script):
     printd("Running db_nmap")
     printd(client.db.workspaces.workspace('default').hosts.list)
     printd("Finished db_nmap")
+    # nm.ToCSV(to_csv(os.path.join(cwd, 'nmap.csv'))
     return nm
 
 
@@ -233,9 +234,9 @@ def main(client):
         # gracefully disconnect from msfrpcd
         # client.logout()
         # return to main
-        vulns = client.db.workspaces.workspace('default').vulns.list
-        vulns_df = pandas.DataFrame(vulns, columns=list(vulns[0].keys()), index=[vuln['address'] for vuln in vulns])
-        return vulns_df
+        hosts = client.db.workspaces.workspace('default').hosts.list
+        hosts_df = pandas.DataFrame(hosts, columns=list(hosts[0].keys()), index=[host['address'] for host in hosts])
+        return hosts_df
 
 
 

